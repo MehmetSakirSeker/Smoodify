@@ -62,7 +62,7 @@ public class DataLoader {
                 count++;
 
                 // Execute batch every 1000 records to save memory
-                if (count % 1000 == 0) {
+                if (count % 5000 == 0) {
                     pstmt.executeBatch();
                     System.out.println("Imported " + count + " rows...");
                 }

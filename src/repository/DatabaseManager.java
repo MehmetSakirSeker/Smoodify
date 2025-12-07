@@ -20,7 +20,7 @@ public class DatabaseManager {
              Statement stmt = conn.createStatement()) {
 
             stmt.executeUpdate("CREATE DATABASE IF NOT EXISTS " + DB_NAME);
-            System.out.println("Database checked/created successfully.");
+            System.out.println("Database created successfully.");
 
             stmt.execute("USE " + DB_NAME);
             String createTableSQL = "CREATE TABLE IF NOT EXISTS tracks (" +
@@ -38,7 +38,14 @@ public class DatabaseManager {
                     "acousticness FLOAT, " +
                     "mode TINYINT)";
             stmt.executeUpdate(createTableSQL);
-            System.out.println("Table 'tracks' checked/created successfully.");
+            System.out.println("Table 'tracks' created successfully.");
+
+            String createFavoritesTableSQL = "CREATE TABLE IF NOT EXISTS favorites (" +
+                    "fav_id INT AUTO_INCREMENT PRIMARY KEY, " +
+                    "song_info TEXT)";
+
+            stmt.executeUpdate(createFavoritesTableSQL);
+            System.out.println("Table 'favorites' created successfully.");
 
         } catch (SQLException e) {
             e.printStackTrace();

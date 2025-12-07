@@ -57,4 +57,79 @@ public class MoodLogic {
         }
         return songs;
     }
+
+    public String addToFavorites(String songInfo) {
+        if (isSongInFavorites(songInfo)) {
+            return "This song is already in your favorites!";
+        }
+
+        String sql = "INSERT INTO favorites (song_info) VALUES (?)";
+        try (Connection conn = DatabaseManager.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setString(1, songInfo);
+            int affectedRows = pstmt.executeUpdate();
+
+            if (affectedRows > 0) {
+                return "Song added to favorites successfully!";
+            } else {
+                return "Failed to add song.";
+            }
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return "Database Error: " + e.getMessage();
+        }
+    }
+
+    private boolean isSongInFavorites(String songInfo) {
+        String sql = "SELECT COUNT(*) FROM favorites WHERE song_info = ?";
+        try (Connection conn = DatabaseManager.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setString(1, songInfo);
+            ResultSet rs = pstmt.executeQuery();
+
+            if (rs.next()) {
+                return rs.getInt(1) > 0;
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return false;
+    }
+
+    public List<String> getFavorites() {
+        List<String> favs = new ArrayList<>();
+        String sql = "SELECT song_info FROM favorites ORDER BY fav_id DESC";
+
+        try (Connection conn = DatabaseManager.getConnection();
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
+
+            while (rs.next()) {
+                favs.add(rs.getString("song_info"));
+            }
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+            favs.add("Error fetching favorites.");
+        }
+        return favs;
+    }
+
+    public boolean removeFromFavorites(String songInfo) {
+        String sql = "DELETE FROM favorites WHERE song_info = ?";
+        try (Connection conn = DatabaseManager.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setString(1, songInfo);
+            int affectedRows = pstmt.executeUpdate();
+            return affectedRows > 0;
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
 }

@@ -16,11 +16,11 @@ public class SmoodifyClientGUI extends JFrame {
     private JList<String> songList;
     private DefaultListModel<String> listModel;
     private JLabel statusLabel;
-    private JLabel subtitleLabel; // Bunu sınıf seviyesine taşıdık ki değiştirebilelim
+    private JLabel subtitleLabel;
 
     public SmoodifyClientGUI() {
         setTitle("Smoodify - Mood Based Music Recommender");
-        setSize(700, 500); // Genişliği biraz artırdım şarkı isimleri sığsın diye
+        setSize(700, 500);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
         setLayout(new BorderLayout());
@@ -36,7 +36,6 @@ public class SmoodifyClientGUI extends JFrame {
         titleLabel.setForeground(Color.WHITE);
         titleLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
 
-        // Dinamik değişecek olan alt başlık
         subtitleLabel = new JLabel("Select your current mood:");
         subtitleLabel.setFont(new Font("Arial", Font.PLAIN, 16));
         subtitleLabel.setForeground(Color.WHITE);
@@ -53,14 +52,28 @@ public class SmoodifyClientGUI extends JFrame {
         songList = new JList<>(listModel);
         songList.setFont(new Font("Segoe UI", Font.PLAIN, 14));
         songList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-
-        // Satır aralığını biraz açalım daha şık dursun
         songList.setFixedCellHeight(30);
 
         JScrollPane scrollPane = new JScrollPane(songList);
         scrollPane.setBorder(BorderFactory.createTitledBorder("Recommended Songs"));
 
         add(scrollPane, BorderLayout.CENTER);
+
+        // --- SAĞ TIK MENÜSÜ (POPUP) ---
+        JPopupMenu popupMenu = new JPopupMenu();
+        JMenuItem addToFavItem = new JMenuItem("Add to Favorites");
+        popupMenu.add(addToFavItem);
+        songList.setComponentPopupMenu(popupMenu);
+
+        addToFavItem.addActionListener(e -> {
+            String selectedSong = songList.getSelectedValue();
+            if (selectedSong != null) {
+                String cleanName = selectedSong.replace(" - ", "").trim();
+                sendRequestToServer("ADD_FAV:" + cleanName);
+            } else {
+                JOptionPane.showMessageDialog(this, "Please select a song first!");
+            }
+        });
 
         // --- ALT PANEL ---
         JPanel bottomContainer = new JPanel(new BorderLayout());
@@ -73,10 +86,20 @@ public class SmoodifyClientGUI extends JFrame {
         JButton btnEnergetic = createMoodButton("Energetic", new Color(255, 140, 0));
         JButton btnSad = createMoodButton("Sad", new Color(70, 130, 180));
 
+
+        JButton btnFavorites = new JButton("My Favorites");
+        btnFavorites.setFont(new Font("Arial", Font.BOLD, 14));
+        btnFavorites.setBackground(new Color(255, 215, 0)); // Altın Sarısı
+        btnFavorites.setForeground(Color.WHITE);
+        btnFavorites.setFocusPainted(false);
+
+        btnFavorites.addActionListener(e -> sendRequestToServer("GET_FAVS"));
+
         buttonPanel.add(btnFocus);
         buttonPanel.add(btnChill);
         buttonPanel.add(btnEnergetic);
         buttonPanel.add(btnSad);
+        buttonPanel.add(btnFavorites);
 
         statusLabel = new JLabel("Ready to connect...");
         statusLabel.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
@@ -94,54 +117,101 @@ public class SmoodifyClientGUI extends JFrame {
         btn.setBackground(color);
         btn.setForeground(Color.WHITE);
         btn.setFocusPainted(false);
-        btn.addActionListener(e -> fetchSongsFromServer(mood));
+        btn.addActionListener(e -> sendRequestToServer("MOOD:" + mood));
         return btn;
     }
 
-    private void fetchSongsFromServer(String mood) {
+    private void sendRequestToServer(String command) {
         new Thread(() -> {
             SwingUtilities.invokeLater(() -> {
-                statusLabel.setText("Connecting to server for " + mood + " songs...");
+                statusLabel.setText("Processing: " + command + "...");
 
-                // İSTEK 1: Başlığı güncelle (Select your current mood: Focus)
-                subtitleLabel.setText("Selected Mood: " + mood);
+                if (!command.startsWith("ADD_FAV:") && !command.startsWith("REMOVE_FAV:")) {
+                    listModel.clear();
 
-                listModel.clear();
+                    if (command.equals("GET_FAVS")) {
+                        subtitleLabel.setText("Your Favorite Songs");
+                    } else {
+                        String moodName = command.startsWith("MOOD:") ? command.substring(5) : command;
+                        subtitleLabel.setText("Selected Mood: " + moodName);
+                    }
+                }
             });
 
             try (Socket socket = new Socket(SERVER_ADDRESS, SERVER_PORT);
                  PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
                  BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()))) {
 
-                out.println(mood);
+                out.println(command);
 
                 String countLine = in.readLine();
                 if (countLine == null) return;
 
-                int songCount = Integer.parseInt(countLine);
-                ArrayList<String> tempSongs = new ArrayList<>();
-                for (int i = 0; i < songCount; i++) {
-                    String song = in.readLine();
-                    tempSongs.add(song);
+                int responseCount = Integer.parseInt(countLine);
+                ArrayList<String> responses = new ArrayList<>();
+                for (int i = 0; i < responseCount; i++) {
+                    responses.add(in.readLine());
                 }
 
                 SwingUtilities.invokeLater(() -> {
-                    for (String song : tempSongs) {
-                        // İSTEK 2: Başındaki kareyi (emojiyi) kaldırdık.
-                        // Sadece temiz bir tire işareti koydum.
-                        listModel.addElement(" - " + song);
+                    if (command.startsWith("ADD_FAV:")) {
+                        String msg = responses.isEmpty() ? "No response" : responses.get(0);
+                        JOptionPane.showMessageDialog(this, msg);
+                        statusLabel.setText(msg);
+
+                    } else if (command.startsWith("REMOVE_FAV:")) {
+                        String msg = responses.isEmpty() ? "No response" : responses.get(0);
+                        statusLabel.setText(msg);
+
+                        sendRequestToServer("GET_FAVS");
+
+                    } else {
+                        for (String item : responses) {
+                            listModel.addElement(" - " + item);
+                        }
+                        statusLabel.setText("Listed " + responseCount + " items.");
+
+                        boolean isFavoritesView = command.equals("GET_FAVS");
+                        updateContextMenu(isFavoritesView);
                     }
-                    statusLabel.setText("Found " + songCount + " songs for " + mood + ".");
                 });
 
             } catch (Exception ex) {
                 SwingUtilities.invokeLater(() -> {
-                    statusLabel.setText("Error: Could not connect to server!");
-                    subtitleLabel.setText("Connection Error!"); // Hata olursa başlıkta da belli edelim
+                    statusLabel.setText("Connection Error!");
                 });
                 ex.printStackTrace();
             }
         }).start();
+    }
+    private void updateContextMenu(boolean isFavoritesView) {
+        JPopupMenu popupMenu = new JPopupMenu();
+
+        if (isFavoritesView) {
+            JMenuItem removeItem = new JMenuItem("Remove from Favorites");
+            removeItem.addActionListener(e -> {
+                String selectedSong = songList.getSelectedValue();
+                if (selectedSong != null) {
+                    String cleanName = selectedSong.replace(" - ", "").trim();
+
+                    sendRequestToServer("REMOVE_FAV:" + cleanName);
+                }
+            });
+            popupMenu.add(removeItem);
+
+        } else {
+            JMenuItem addItem = new JMenuItem("Add to Favorites");
+            addItem.addActionListener(e -> {
+                String selectedSong = songList.getSelectedValue();
+                if (selectedSong != null) {
+                    String cleanName = selectedSong.replace(" - ", "").trim();
+                    sendRequestToServer("ADD_FAV:" + cleanName);
+                }
+            });
+            popupMenu.add(addItem);
+        }
+
+        songList.setComponentPopupMenu(popupMenu);
     }
 
     public static void main(String[] args) {

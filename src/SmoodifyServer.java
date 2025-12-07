@@ -39,18 +39,35 @@ public class SmoodifyServer {
                     BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
                     PrintWriter out = new PrintWriter(socket.getOutputStream(), true)
             ) {
-                //Read mood from Client
-                String moodRequest = in.readLine();
-                System.out.println("Received request: " + moodRequest);
+                String request = in.readLine();
+                System.out.println("Received request: " + request);
 
-                //Get Recommendations from DB
-                List<String> recommendations = logic.getRecommendations(moodRequest);
+                if (request == null) return;
 
-                //Send response back to Client
-                //We send the size first, then the lines
-                out.println(recommendations.size());
-                for (String song : recommendations) {
-                    out.println(song);
+                List<String> responseList;
+
+
+                if (request.startsWith("ADD_FAV:")) {
+                    String songInfo = request.substring(8); //
+                    String resultMessage = logic.addToFavorites(songInfo);
+                    responseList = List.of(resultMessage);
+
+                } else if (request.startsWith("REMOVE_FAV:")) {
+                    String songInfo = request.substring(11);
+                    boolean success = logic.removeFromFavorites(songInfo);
+                    responseList = List.of(success ? "Song removed from favorites." : "Failed to remove.");
+
+                } else if (request.equals("GET_FAVS")) {
+                    responseList = logic.getFavorites();
+
+                } else {
+                    String mood = request.startsWith("MOOD:") ? request.substring(5) : request;
+                    responseList = logic.getRecommendations(mood);
+                }
+
+                out.println(responseList.size());
+                for (String line : responseList) {
+                    out.println(line);
                 }
 
             } catch (IOException e) {
