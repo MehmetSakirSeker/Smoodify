@@ -1,8 +1,12 @@
 import javax.swing.*;
 import java.awt.*;
 import java.io.*; // Dosya işlemleri için gerekli
+import java.net.HttpURLConnection;
 import java.net.Socket;
+import java.net.URL;
 import java.util.ArrayList;
+import java.util.Scanner;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class SmoodifyClientGUI extends JFrame {
 
@@ -91,6 +95,27 @@ public class SmoodifyClientGUI extends JFrame {
         btnFavorites.setFocusPainted(false);
         btnFavorites.addActionListener(e -> sendRequestToServer("GET_FAVS"));
 
+        JButton btnWeather = new JButton("Weather Vibe 🌤️");
+        btnWeather.setFont(new Font("Arial", Font.BOLD, 14));
+        btnWeather.setBackground(new Color(0, 191, 255)); // Gökyüzü Mavisi
+        btnWeather.setForeground(Color.WHITE);
+        btnWeather.setFocusPainted(false);
+        btnWeather.addActionListener(e -> {
+            new Thread(() -> {
+                SwingUtilities.invokeLater(() -> statusLabel.setText("Detecting location..."));
+                String location = getCurrentLocation(); // IP'den konum bul
+
+                if (location != null) {
+                    sendRequestToServer("WEATHER:" + location);
+                } else {
+                    SwingUtilities.invokeLater(() -> {
+                        statusLabel.setText("Location detection failed.");
+                        JOptionPane.showMessageDialog(this, "Could not detect location.\nCheck your internet connection.");
+                    });
+                }
+            }).start();
+        });
+
         // --- EXPORT ---
         JButton btnExport = new JButton("Export Playlist");
         btnExport.setFont(new Font("Arial", Font.BOLD, 14));
@@ -104,6 +129,7 @@ public class SmoodifyClientGUI extends JFrame {
         buttonPanel.add(btnChill);
         buttonPanel.add(btnEnergetic);
         buttonPanel.add(btnSad);
+        buttonPanel.add(btnWeather);
         buttonPanel.add(btnFavorites);
         buttonPanel.add(btnExport);
 
@@ -115,6 +141,48 @@ public class SmoodifyClientGUI extends JFrame {
         bottomContainer.add(statusLabel, BorderLayout.SOUTH);
 
         add(bottomContainer, BorderLayout.SOUTH);
+    }
+
+    private String getCurrentLocation() {
+        try {
+            URL url = new URL("http://ip-api.com/json/");
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("GET");
+            conn.setConnectTimeout(3000);
+
+            if (conn.getResponseCode() != 200) return null;
+
+            StringBuilder jsonResult = new StringBuilder();
+            Scanner scanner = new Scanner(url.openStream());
+            while (scanner.hasNext()) {
+                jsonResult.append(scanner.nextLine());
+            }
+            scanner.close();
+
+            String json = jsonResult.toString();
+
+
+            double lat = extractJsonValue(json, "\"lat\":");
+            double lon = extractJsonValue(json, "\"lon\":");
+
+            return lat + "," + lon;
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
+    private double extractJsonValue(String json, String key) {
+        int startIndex = json.indexOf(key);
+        if (startIndex == -1) return 0.0;
+
+        startIndex += key.length();
+        int endIndex = json.indexOf(",", startIndex);
+        if (endIndex == -1) endIndex = json.indexOf("}", startIndex);
+
+        String valueStr = json.substring(startIndex, endIndex).trim();
+        return Double.parseDouble(valueStr);
     }
 
     // --- Favorileri Dosyaya Aktar ---
@@ -184,9 +252,13 @@ public class SmoodifyClientGUI extends JFrame {
 
                     if (command.equals("GET_FAVS")) {
                         subtitleLabel.setText("Your Favorite Songs");
-                    } else {
-                        String moodName = command.startsWith("MOOD:") ? command.substring(5) : command;
+                    } else if (command.startsWith("MOOD:")) {
+                        // Normal mood butonu ise
+                        String moodName = command.substring(5);
                         subtitleLabel.setText("Selected Mood: " + moodName);
+                    } else if (command.startsWith("WEATHER:")) {
+                        // Hava durumu ise geçici olarak "Hesaplanıyor" yazalım
+                        subtitleLabel.setText("Analyzing Weather... 🌤️");
                     }
                 }
             });
@@ -200,9 +272,9 @@ public class SmoodifyClientGUI extends JFrame {
                 String countLine = in.readLine();
                 if (countLine == null) return;
 
-                int responseCount = Integer.parseInt(countLine);
+                AtomicInteger responseCount = new AtomicInteger(Integer.parseInt(countLine));
                 ArrayList<String> responses = new ArrayList<>();
-                for (int i = 0; i < responseCount; i++) {
+                for (int i = 0; i < responseCount.get(); i++) {
                     responses.add(in.readLine());
                 }
 
@@ -215,14 +287,31 @@ public class SmoodifyClientGUI extends JFrame {
                     } else if (command.startsWith("REMOVE_FAV:")) {
                         String msg = responses.isEmpty() ? "No response" : responses.get(0);
                         statusLabel.setText(msg);
-
                         sendRequestToServer("GET_FAVS");
 
                     } else {
+                        if (command.startsWith("WEATHER:") && !responses.isEmpty() && responses.get(0).startsWith("[Weather Detected:")) {
+
+                            String infoLine = responses.get(0);
+
+
+                            String detectedMood = infoLine.substring(19, infoLine.indexOf(" Mode"));
+
+
+                            String coordinates = command.substring(8);
+
+                            subtitleLabel.setText("Selected Mood: " + detectedMood + " | 📍 Location: " + coordinates);
+
+                            responses.remove(0);
+
+                            responseCount.getAndDecrement();
+                        }
+
                         for (String item : responses) {
                             listModel.addElement(" - " + item);
                         }
-                        statusLabel.setText("Listed " + responseCount + " items.");
+
+                        statusLabel.setText("Loaded " + responseCount + " songs.");
 
                         boolean isFavoritesView = command.equals("GET_FAVS");
                         updateContextMenu(isFavoritesView);

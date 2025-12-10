@@ -60,7 +60,18 @@ public class SmoodifyServer {
                 } else if (request.equals("GET_FAVS")) {
                     responseList = logic.getFavorites();
 
-                } else {
+                } else if (request.startsWith("WEATHER:")) {
+                    try {
+                        String[] parts = request.substring(8).split(",");
+                        double lat = Double.parseDouble(parts[0]);
+                        double lon = Double.parseDouble(parts[1]);
+
+                        responseList = logic.getRecommendationsByWeather(lat, lon);
+                    } catch (Exception e) {
+                        responseList = List.of("Invalid Coordinates sent.");
+                    }
+
+                }else {
                     String mood = request.startsWith("MOOD:") ? request.substring(5) : request;
                     responseList = logic.getRecommendations(mood);
                 }
