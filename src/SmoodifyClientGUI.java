@@ -1,8 +1,6 @@
 import javax.swing.*;
 import java.awt.*;
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
-import java.io.PrintWriter;
+import java.io.*; // Dosya işlemleri için gerekli
 import java.net.Socket;
 import java.util.ArrayList;
 
@@ -20,7 +18,7 @@ public class SmoodifyClientGUI extends JFrame {
 
     public SmoodifyClientGUI() {
         setTitle("Smoodify - Mood Based Music Recommender");
-        setSize(700, 500);
+        setSize(700, 550);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
         setLayout(new BorderLayout());
@@ -78,7 +76,7 @@ public class SmoodifyClientGUI extends JFrame {
         // --- ALT PANEL ---
         JPanel bottomContainer = new JPanel(new BorderLayout());
         JPanel buttonPanel = new JPanel();
-        buttonPanel.setLayout(new FlowLayout(FlowLayout.CENTER, 15, 15));
+        buttonPanel.setLayout(new FlowLayout(FlowLayout.CENTER, 10, 15));
         buttonPanel.setBackground(Color.DARK_GRAY);
 
         JButton btnFocus = createMoodButton("Focus", new Color(100, 149, 237));
@@ -86,20 +84,28 @@ public class SmoodifyClientGUI extends JFrame {
         JButton btnEnergetic = createMoodButton("Energetic", new Color(255, 140, 0));
         JButton btnSad = createMoodButton("Sad", new Color(70, 130, 180));
 
-
         JButton btnFavorites = new JButton("My Favorites");
         btnFavorites.setFont(new Font("Arial", Font.BOLD, 14));
         btnFavorites.setBackground(new Color(255, 215, 0)); // Altın Sarısı
         btnFavorites.setForeground(Color.WHITE);
         btnFavorites.setFocusPainted(false);
-
         btnFavorites.addActionListener(e -> sendRequestToServer("GET_FAVS"));
+
+        // --- EXPORT ---
+        JButton btnExport = new JButton("Export Playlist");
+        btnExport.setFont(new Font("Arial", Font.BOLD, 14));
+        btnExport.setBackground(new Color(148, 0, 211)); // Mor renk
+        btnExport.setForeground(Color.WHITE);
+        btnExport.setFocusPainted(false);
+
+        btnExport.addActionListener(e -> exportFavoritesToFile());
 
         buttonPanel.add(btnFocus);
         buttonPanel.add(btnChill);
         buttonPanel.add(btnEnergetic);
         buttonPanel.add(btnSad);
         buttonPanel.add(btnFavorites);
+        buttonPanel.add(btnExport);
 
         statusLabel = new JLabel("Ready to connect...");
         statusLabel.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
@@ -109,6 +115,53 @@ public class SmoodifyClientGUI extends JFrame {
         bottomContainer.add(statusLabel, BorderLayout.SOUTH);
 
         add(bottomContainer, BorderLayout.SOUTH);
+    }
+
+    // --- Favorileri Dosyaya Aktar ---
+    private void exportFavoritesToFile() {
+        new Thread(() -> {
+            SwingUtilities.invokeLater(() -> statusLabel.setText("Exporting playlist..."));
+
+            try (Socket socket = new Socket(SERVER_ADDRESS, SERVER_PORT);
+                 PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
+                 BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()))) {
+
+                out.println("GET_FAVS");
+
+                String countLine = in.readLine();
+                if (countLine == null) return;
+                int responseCount = Integer.parseInt(countLine);
+
+                File folder = new File("playlists");
+                if (!folder.exists()) {
+                    folder.mkdir();
+                }
+
+                File file = new File(folder, "favorites.txt");
+
+                try (PrintWriter fileWriter = new PrintWriter(new FileWriter(file))) {
+                    for (int i = 0; i < responseCount; i++) {
+                        String song = in.readLine();
+                        fileWriter.println(song);
+                    }
+                }
+
+                SwingUtilities.invokeLater(() -> {
+                    statusLabel.setText("Playlist exported successfully!");
+                    JOptionPane.showMessageDialog(this,
+                            "Playlist saved to:\n" + file.getAbsolutePath(),
+                            "Export Success",
+                            JOptionPane.INFORMATION_MESSAGE);
+                });
+
+            } catch (Exception ex) {
+                SwingUtilities.invokeLater(() -> {
+                    statusLabel.setText("Export failed!");
+                    JOptionPane.showMessageDialog(this, "Error exporting playlist: " + ex.getMessage());
+                });
+                ex.printStackTrace();
+            }
+        }).start();
     }
 
     private JButton createMoodButton(String mood, Color color) {
@@ -184,6 +237,7 @@ public class SmoodifyClientGUI extends JFrame {
             }
         }).start();
     }
+
     private void updateContextMenu(boolean isFavoritesView) {
         JPopupMenu popupMenu = new JPopupMenu();
 
