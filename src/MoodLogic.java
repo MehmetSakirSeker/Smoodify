@@ -207,12 +207,12 @@ public class MoodLogic {
     }
 
     private String mapWeatherToMood(int code) {
-        // 0: Açık hava -> Energetic
-        // 1, 2, 3: Parçalı bulutlu -> Chill
-        // 45, 48: Sisli -> Focus
-        // 51, 53, 55, 61, 63, 65: Yağmur -> Sad
-        // 71, 73, 75: Kar -> Chill
-        // 95, 96, 99: Fırtına -> Focus (veya Energetic)
+        // 0: Clear weather -> Energetic
+        // 1, 2, 3: Partly cloudy -> Chill
+        // 45, 48: Foggy -> Focus
+        // 51, 53, 55, 61, 63, 65: Rain -> Sad
+        // 71, 73, 75: Snow -> Chill
+        // 95, 96, 99: Storm -> Focus (or Energetic)
 
         if (code == 0) return "energetic";
         if (code >= 1 && code <= 3) return "chill";
@@ -223,5 +223,46 @@ public class MoodLogic {
         if (code >= 95) return "focus"; // Fırtına
 
         return "chill";
+    }
+
+    public List<String> getCustomRecommendations(double targetEnergy, double targetValence) {
+        List<String> songs = new ArrayList<>();
+
+        // Tolerance range: Slightly below and slightly above what the user has selected.
+        double range = 0.15;
+
+        String sql = "SELECT track_name, artists FROM tracks " +
+                "WHERE energy BETWEEN ? AND ? " +
+                "AND valence BETWEEN ? AND ? " +
+                "ORDER BY RAND() LIMIT 10";
+
+        try (Connection conn = DatabaseManager.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            // Adjust the energy range.
+            pstmt.setDouble(1, Math.max(0, targetEnergy - range));
+            pstmt.setDouble(2, Math.min(1, targetEnergy + range));
+
+            // Adjust the Valence (Happiness) range.
+            pstmt.setDouble(3, Math.max(0, targetValence - range));
+            pstmt.setDouble(4, Math.min(1, targetValence + range));
+
+            ResultSet rs = pstmt.executeQuery();
+
+            while (rs.next()) {
+                String title = rs.getString("track_name");
+                String artist = rs.getString("artists");
+                songs.add(title + " - " + artist);
+            }
+
+            if (songs.isEmpty()) {
+                songs.add("No songs found for this specific combination. Try different values!");
+            }
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+            songs.add("Database Error during custom search.");
+        }
+        return songs;
     }
 }

@@ -71,7 +71,19 @@ public class SmoodifyServer {
                         responseList = List.of("Invalid Coordinates sent.");
                     }
 
-                }else {
+                } else if (request.startsWith("CUSTOM:")) {
+                    try {
+                        // Incoming data format: "CUSTOM:0.75,0.40" (Energy, Valence)
+                        String[] parts = request.substring(7).split(",");
+                        double energy = Double.parseDouble(parts[0]);
+                        double valence = Double.parseDouble(parts[1]);
+
+                        responseList = logic.getCustomRecommendations(energy, valence);
+                    } catch (Exception e) {
+                        responseList = List.of("Invalid Custom Data.");
+                    }
+
+                } else {
                     String mood = request.startsWith("MOOD:") ? request.substring(5) : request;
                     responseList = logic.getRecommendations(mood);
                 }
