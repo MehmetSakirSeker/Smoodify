@@ -10,6 +10,7 @@ import java.util.Scanner;
 
 public class MoodLogic {
 
+    // Retrieves 10 random songs based on predefined mood parameters (energy, valence, etc.)
     public List<String> getRecommendations(String mood) {
         List<String> songs = new ArrayList<>();
         String sql = "";
@@ -61,7 +62,7 @@ public class MoodLogic {
         }
         return songs;
     }
-
+    // Saves a song string to the favorites table after checking for duplicates
     public String addToFavorites(String songInfo) {
         if (isSongInFavorites(songInfo)) {
             return "This song is already in your favorites!";
@@ -85,7 +86,7 @@ public class MoodLogic {
             return "Database Error: " + e.getMessage();
         }
     }
-
+    // Helper to check if a song already exists in the favorites table
     private boolean isSongInFavorites(String songInfo) {
         String sql = "SELECT COUNT(*) FROM favorites WHERE song_info = ?";
         try (Connection conn = DatabaseManager.getConnection();
@@ -102,7 +103,7 @@ public class MoodLogic {
         }
         return false;
     }
-
+    // Retrieves all songs saved in the favorites table
     public List<String> getFavorites() {
         List<String> favs = new ArrayList<>();
         String sql = "SELECT song_info FROM favorites ORDER BY fav_id DESC";
@@ -121,7 +122,7 @@ public class MoodLogic {
         }
         return favs;
     }
-
+    // Removes a song from the favorites table
     public boolean removeFromFavorites(String songInfo) {
         String sql = "DELETE FROM favorites WHERE song_info = ?";
         try (Connection conn = DatabaseManager.getConnection();
@@ -137,9 +138,9 @@ public class MoodLogic {
         }
     }
 
-
+    // Connects to Open-Meteo API to fetch local weather and map it to a music mood
     public List<String> getRecommendationsByWeather(double lat, double lon) {
-        String weatherMood = "chill"; // Varsayılan mod
+        String weatherMood = "chill"; // default mod
 
         try {
             String urlString = String.format(Locale.US,
@@ -161,6 +162,7 @@ public class MoodLogic {
                 return List.of("Weather API Error: " + responseCode);
             }
 
+            // Parse response to find the weathercode
             StringBuilder jsonResult = new StringBuilder();
             Scanner scanner = new Scanner(url.openStream());
             while (scanner.hasNext()) {
@@ -176,6 +178,7 @@ public class MoodLogic {
                 int codeIndex = json.indexOf("\"weathercode\":", currentWeatherIndex);
 
                 if (codeIndex != -1) {
+                    // Basic string parsing to extract the code value
                     String sub = json.substring(codeIndex + 14);
 
                     int commaIndex = sub.indexOf(",");
@@ -206,6 +209,7 @@ public class MoodLogic {
         return songs;
     }
 
+    // Maps WMO Weather interpretation codes to our app's mood categories
     private String mapWeatherToMood(int code) {
         // 0: Clear weather -> Energetic
         // 1, 2, 3: Partly cloudy -> Chill
@@ -214,17 +218,18 @@ public class MoodLogic {
         // 71, 73, 75: Snow -> Chill
         // 95, 96, 99: Storm -> Focus (or Energetic)
 
-        if (code == 0) return "energetic";
-        if (code >= 1 && code <= 3) return "chill";
-        if (code == 45 || code == 48) return "focus";
-        if (code >= 51 && code <= 67) return "sad"; // Yağmurlu
-        if (code >= 80 && code <= 82) return "sad"; // Sağanak
-        if (code >= 71 && code <= 77) return "chill"; // Karlı
-        if (code >= 95) return "focus"; // Fırtına
+        if (code == 0) return "energetic"; // Clear Sky
+        if (code >= 1 && code <= 3) return "chill"; // Cloudy
+        if (code == 45 || code == 48) return "focus"; // Fog
+        if (code >= 51 && code <= 67) return "sad"; // Rain
+        if (code >= 80 && code <= 82) return "sad"; // Drizzle
+        if (code >= 71 && code <= 77) return "chill"; // Snow
+        if (code >= 95) return "focus"; // Storm
 
         return "chill";
     }
 
+    // Fetches songs based on precise sliders for energy and valence
     public List<String> getCustomRecommendations(double targetEnergy, double targetValence) {
         List<String> songs = new ArrayList<>();
 

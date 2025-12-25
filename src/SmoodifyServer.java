@@ -8,16 +8,19 @@ public class SmoodifyServer {
     private static final int PORT = 5000;
 
     public static void main(String[] args) {
+        // Ensure database and tables are ready before accepting connections
         DatabaseManager.initializeDatabase();
 
         System.out.println("Smoodify Server is running on port " + PORT + "...");
         MoodLogic logic = new MoodLogic();
 
+        // Listen for incoming client connections
         try (ServerSocket serverSocket = new ServerSocket(PORT)) {
             while (true) {
                 Socket clientSocket = serverSocket.accept();
                 System.out.println("Client connected!");
 
+                // Spawn a new thread for each client to handle requests concurrently
                 new ClientHandler(clientSocket, logic).start();
             }
         } catch (IOException e) {
@@ -25,6 +28,7 @@ public class SmoodifyServer {
         }
     }
 
+    // Inner class to handle individual client communication logic
     private static class ClientHandler extends Thread {
         private Socket socket;
         private MoodLogic logic;
@@ -47,6 +51,7 @@ public class SmoodifyServer {
                 List<String> responseList;
 
 
+                // --- Command Routing ---
                 if (request.startsWith("ADD_FAV:")) {
                     String songInfo = request.substring(8); //
                     String resultMessage = logic.addToFavorites(songInfo);
@@ -62,6 +67,7 @@ public class SmoodifyServer {
 
                 } else if (request.startsWith("WEATHER:")) {
                     try {
+                        // Parses "lat,lon" string from client
                         String[] parts = request.substring(8).split(",");
                         double lat = Double.parseDouble(parts[0]);
                         double lon = Double.parseDouble(parts[1]);
@@ -73,7 +79,7 @@ public class SmoodifyServer {
 
                 } else if (request.startsWith("CUSTOM:")) {
                     try {
-                        // Incoming data format: "CUSTOM:0.75,0.40" (Energy, Valence)
+                        // Parses "energy,valence" values from client sliders
                         String[] parts = request.substring(7).split(",");
                         double energy = Double.parseDouble(parts[0]);
                         double valence = Double.parseDouble(parts[1]);
@@ -84,10 +90,14 @@ public class SmoodifyServer {
                     }
 
                 } else {
+                    // Default to standard mood-based search
                     String mood = request.startsWith("MOOD:") ? request.substring(5) : request;
                     responseList = logic.getRecommendations(mood);
                 }
 
+                // --- Response Protocol ---
+                // First line: Total number of items (for client loop control)
+                // Subsequent lines: The actual data
                 out.println(responseList.size());
                 for (String line : responseList) {
                     out.println(line);

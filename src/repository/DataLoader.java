@@ -12,8 +12,8 @@ public class DataLoader {
     private static final String CSV_FILE_PATH = "datasets/smoodify_cleaned_data.csv";
 
     public static void main(String[] args) {
+        // Initialize DB schema then trigger the CSV import
         DatabaseManager.initializeDatabase();
-
         loadCsvToDatabase();
     }
 
@@ -26,7 +26,7 @@ public class DataLoader {
              BufferedReader br = new BufferedReader(new FileReader(CSV_FILE_PATH));
              PreparedStatement pstmt = conn.prepareStatement(insertSQL)) {
 
-            conn.setAutoCommit(false); // Disable auto-commit for speed (Batch Processing)
+            conn.setAutoCommit(false); // Disable auto-commit for speed better performing
 
             String line;
             int count = 0;
@@ -37,12 +37,13 @@ public class DataLoader {
             while ((line = br.readLine()) != null) {
                 String[] data = parseCsvLine(line);
 
+                // Basic validation to ensure row matches expected column count
                 if (data.length < 13) {
                     System.out.println("Skipping malformed row: " + line);
                     continue;
                 }
 
-
+                // Map CSV columns to PreparedStatement parameters
                 pstmt.setString(1, data[0]); // track_id
                 pstmt.setString(2, data[1]); // track_name
                 pstmt.setString(3, data[2]); // artists
@@ -61,7 +62,7 @@ public class DataLoader {
                 pstmt.addBatch();
                 count++;
 
-                // Execute batch every 1000 records to save memory
+                // Execute final batch and commit the transaction
                 if (count % 5000 == 0) {
                     pstmt.executeBatch();
                     System.out.println("Imported " + count + " rows...");
@@ -79,11 +80,12 @@ public class DataLoader {
     }
 
 
+    // Handles CSV splitting while preserving commas located inside quotes
     private static String[] parseCsvLine(String line) {
-        // This regex splits by comma, but ignores commas inside double quotes
         return line.split(",(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)", -1);
     }
 
+    // Helper methods to safely parse numbers and prevent crashes on null/empty strings
     private static int parseIntOrZero(String value) {
         try { return Integer.parseInt(value.trim()); } catch (NumberFormatException e) { return 0; }
     }

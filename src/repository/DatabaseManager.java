@@ -6,23 +6,29 @@ import java.sql.SQLException;
 import java.sql.Statement;
 
 public class DatabaseManager {
+    // Database connection credentials and URL
     private static final String URL = "jdbc:mysql://localhost:3306/";
     private static final String DB_NAME = "smoodifydb";
     private static final String USER = "root";
-    private static final String PASS = "Sockymahmut63";
+    private static final String PASS = "1234";
 
+    // Returns a connection object to the specific application database
     public static Connection getConnection() throws SQLException {
         return DriverManager.getConnection(URL + DB_NAME, USER, PASS);
     }
 
+    // Sets up the database and required tables if they don't already exist
     public static void initializeDatabase() {
         try (Connection conn = DriverManager.getConnection(URL, USER, PASS);
              Statement stmt = conn.createStatement()) {
 
+            // Create the database schema
             stmt.executeUpdate("CREATE DATABASE IF NOT EXISTS " + DB_NAME);
             System.out.println("Database created successfully.");
 
             stmt.execute("USE " + DB_NAME);
+
+            // Define and create the 'tracks' table for song metadata
             String createTableSQL = "CREATE TABLE IF NOT EXISTS tracks (" +
                     "track_id VARCHAR(255) PRIMARY KEY, " +
                     "track_name TEXT, " +
@@ -40,6 +46,7 @@ public class DatabaseManager {
             stmt.executeUpdate(createTableSQL);
             System.out.println("Table 'tracks' created successfully.");
 
+            // Define and create the 'favorites' table for user-saved songs
             String createFavoritesTableSQL = "CREATE TABLE IF NOT EXISTS favorites (" +
                     "fav_id INT AUTO_INCREMENT PRIMARY KEY, " +
                     "song_info TEXT)";

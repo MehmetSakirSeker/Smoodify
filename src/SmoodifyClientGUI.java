@@ -10,7 +10,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 public class SmoodifyClientGUI extends JFrame {
 
-    // Server Settings
+    // Server connection settings
     private static final String SERVER_ADDRESS = "localhost";
     private static final int SERVER_PORT = 5000;
 
@@ -21,13 +21,14 @@ public class SmoodifyClientGUI extends JFrame {
     private JLabel subtitleLabel;
 
     public SmoodifyClientGUI() {
+        // Basic window configuration
         setTitle("Smoodify - Mood Based Music Recommender");
         setSize(1000, 600);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
         setLayout(new BorderLayout());
 
-        // --- ÜST PANEL ---
+        // --- Header Section: Title and Mood Subtitle ---
         JPanel headerPanel = new JPanel();
         headerPanel.setLayout(new BoxLayout(headerPanel, BoxLayout.Y_AXIS));
         headerPanel.setBackground(new Color(30, 215, 96));
@@ -49,14 +50,14 @@ public class SmoodifyClientGUI extends JFrame {
 
         add(headerPanel, BorderLayout.NORTH);
 
-        // --- CENTER PANEL (LIST) ---
+        // --- Center Section: Song List ---
         listModel = new DefaultListModel<>();
         songList = new JList<>(listModel);
         songList.setFont(new Font("Segoe UI", Font.PLAIN, 14));
         songList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         songList.setFixedCellHeight(30);
 
-        // Double-click feature (to open on YouTube)
+        // Open YouTube search on double-click
         songList.addMouseListener(new java.awt.event.MouseAdapter() {
             public void mouseClicked(java.awt.event.MouseEvent evt) {
                 if (evt.getClickCount() == 2) {
@@ -91,38 +92,38 @@ public class SmoodifyClientGUI extends JFrame {
             }
         });
 
-        // --- BOTTOM PANEL (BUTTONS) ---
+        // --- Bottom Section: Control Buttons and Status Bar ---
         JPanel bottomContainer = new JPanel(new BorderLayout());
         JPanel buttonPanel = new JPanel();
         buttonPanel.setLayout(new FlowLayout(FlowLayout.CENTER, 10, 15));
         buttonPanel.setBackground(Color.DARK_GRAY);
 
-        // -- Standard Mod Buttons --
+        // Mood buttons
         JButton btnFocus = createMoodButton("Focus", new Color(100, 149, 237));
         JButton btnChill = createMoodButton("Chill", new Color(255, 182, 193));
         JButton btnEnergetic = createMoodButton("Energetic", new Color(255, 140, 0));
         JButton btnSad = createMoodButton("Sad", new Color(70, 130, 180));
 
-        // -- Custom Mix Button --
+        // Custom Slider Dialog Button
         JButton btnCustom = new JButton("Custom Mix");
         btnCustom.setFont(new Font("Arial", Font.BOLD, 14));
-        btnCustom.setBackground(new Color(138, 43, 226)); // BlueViolet
+        btnCustom.setBackground(new Color(138, 43, 226));
         btnCustom.setForeground(Color.WHITE);
         btnCustom.setFocusPainted(false);
         btnCustom.addActionListener(e -> showCustomMoodDialog());
 
-        // -- Favorites Button --
+        // Favorites  actions
         JButton btnFavorites = new JButton("My Favorites");
         btnFavorites.setFont(new Font("Arial", Font.BOLD, 14));
-        btnFavorites.setBackground(new Color(255, 215, 0)); // Altın
+        btnFavorites.setBackground(new Color(255, 215, 0)); // Gold
         btnFavorites.setForeground(Color.WHITE);
         btnFavorites.setFocusPainted(false);
         btnFavorites.addActionListener(e -> sendRequestToServer("GET_FAVS"));
 
-        // -- Weather Button --
+        // Weather-based recommendation button
         JButton btnWeather = new JButton("Weather Vibe");
         btnWeather.setFont(new Font("Arial", Font.BOLD, 14));
-        btnWeather.setBackground(new Color(0, 191, 255)); // Mavi
+        btnWeather.setBackground(new Color(0, 191, 255));
         btnWeather.setForeground(Color.WHITE);
         btnWeather.setFocusPainted(false);
         btnWeather.addActionListener(e -> {
@@ -143,7 +144,7 @@ public class SmoodifyClientGUI extends JFrame {
 
         JButton btnExport = new JButton("Export Playlist");
         btnExport.setFont(new Font("Arial", Font.BOLD, 14));
-        btnExport.setBackground(new Color(148, 0, 211)); // Mor
+        btnExport.setBackground(new Color(148, 0, 211));
         btnExport.setForeground(Color.WHITE);
         btnExport.setFocusPainted(false);
         btnExport.addActionListener(e -> exportFavoritesToFile());
@@ -169,7 +170,7 @@ public class SmoodifyClientGUI extends JFrame {
         add(bottomContainer, BorderLayout.SOUTH);
     }
 
-    // --- CUSTOM MOOD DIALOG ---
+    // Displays a dialog with sliders to manually adjust energy and happiness
     private void showCustomMoodDialog() {
         JDialog dialog = new JDialog(this, "Create Your Mood", true);
         dialog.setSize(400, 350);
@@ -224,7 +225,7 @@ public class SmoodifyClientGUI extends JFrame {
         dialog.setVisible(true);
     }
 
-    // Browser method
+    // Encodes query and opens the default browser to YouTube
     private void openInBrowser(String query) {
         try {
             String encodedQuery = java.net.URLEncoder.encode(query, "UTF-8");
@@ -236,6 +237,7 @@ public class SmoodifyClientGUI extends JFrame {
         }
     }
 
+    // Uses ip-api.com to get latitude and longitude based on the user's IP
     private String getCurrentLocation() {
         try {
             URL url = new URL("http://ip-api.com/json/");
@@ -263,7 +265,7 @@ public class SmoodifyClientGUI extends JFrame {
             return null;
         }
     }
-
+    // Fetches favorites from server and saves them to a local .txt file
     private double extractJsonValue(String json, String key) {
         int startIndex = json.indexOf(key);
         if (startIndex == -1) return 0.0;
@@ -332,6 +334,7 @@ public class SmoodifyClientGUI extends JFrame {
         return btn;
     }
 
+    // Handles communication with the Server in a background thread to keep UI responsive
     private void sendRequestToServer(String command) {
         new Thread(() -> {
             SwingUtilities.invokeLater(() -> {
@@ -366,6 +369,7 @@ public class SmoodifyClientGUI extends JFrame {
                     responses.add(in.readLine());
                 }
 
+                // Update UI components
                 SwingUtilities.invokeLater(() -> {
                     if (command.startsWith("ADD_FAV:")) {
                         String msg = responses.isEmpty() ? "No response" : responses.get(0);
@@ -407,6 +411,7 @@ public class SmoodifyClientGUI extends JFrame {
         }).start();
     }
 
+    // Switches popup menu items between "Add" and "Remove" based on the current view
     private void updateContextMenu(boolean isFavoritesView) {
         JPopupMenu popupMenu = new JPopupMenu();
 
