@@ -87,10 +87,18 @@ public class DataLoader {
 
     // Helper methods to safely parse numbers and prevent crashes on null/empty strings
     private static int parseIntOrZero(String value) {
-        try { return Integer.parseInt(value.trim()); } catch (NumberFormatException e) { return 0; }
+        try {
+            return Integer.parseInt(value.trim());
+        } catch (NumberFormatException e) {
+            return 0;
+        }
     }
 
     private static float parseFloatOrZero(String value) {
-        try { return Float.parseFloat(value.trim()); } catch (NumberFormatException e) { return 0.0f; }
+        try {
+            return Float.parseFloat(value.trim());
+        } catch (NumberFormatException e) {
+            return 0.0f;
+        }
     }
 }

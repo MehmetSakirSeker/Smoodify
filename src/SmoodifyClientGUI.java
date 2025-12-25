@@ -265,6 +265,7 @@ public class SmoodifyClientGUI extends JFrame {
             return null;
         }
     }
+
     // Fetches favorites from server and saves them to a local .txt file
     private double extractJsonValue(String json, String key) {
         int startIndex = json.indexOf(key);
